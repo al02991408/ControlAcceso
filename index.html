@@ -3,9 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#4CAF50">
-    <meta name="description" content="Sistema de control de acceso para edificios de departamentos">
-    <title>Control de Acceso - Residentes</title>
+    <title>Access Control - Residentes</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -15,42 +13,22 @@
             <p>Residentes & Visitantes</p>
         </header>
 
-        <div id="errorMessage" class="alert alert-error" role="alert" aria-live="polite" hidden></div>
-
-        <section class="form-section" aria-labelledby="form-title">
-            <h2 id="form-title">Agregar Nuevo Residente</h2>
-            <form id="residentForm" novalidate>
-                <div class="form-group">
-                    <label for="resName">Nombre del Residente *</label>
-                    <input 
-                        type="text" 
-                        id="resName" 
-                        name="resName"
-                        placeholder="Ej: Juan Pérez"
-                        required
-                        aria-required="true">
-                </div>
-                <div class="form-group">
-                    <label for="resDomicile">Departamento *</label>
-                    <select
-                        id="resDomicile"
-                        name="resDomicile"
-                        required
-                        aria-required="true">
-                        <option value="">Selecciona un departamento</option>
-                    </select>
-                </div>
-                <button type="submit" class="btn-primary">Crear Residente</button>
+        <section class="form-section">
+            <h2>Agregar Nuevo Residente</h2>
+            <form id="residentForm">
+                <input type="text" id="resName" placeholder="Nombre del residente" required>
+                <input type="text" id="resDomicile" placeholder="Domicilio (ej. Depto. 4B)" required>
+                <button type="submit">Crear Residente</button>
             </form>
         </section>
 
-        <section class="list-section" aria-labelledby="directory-title">
-            <h2 id="directory-title">Directorio <span id="residentCount" aria-label="Cantidad de residentes">(0)</span></h2>
-            <div id="residentsList" role="list" aria-label="Lista de residentes"></div>
+        <section class="list-section">
+            <h2>Directorio <span id="residentCount">(0)</span></h2>
+            <div id="residentsList"></div>
         </section>
     </div>
 
-    <script src="departamentos.js" defer></script>
-    <script src="app.js" defer></script>
+    <script src="app.js"></script>
 </body>
 </html>
+
