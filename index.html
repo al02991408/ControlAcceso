@@ -17,7 +17,9 @@
             <h2>Agregar Nuevo Residente</h2>
             <form id="residentForm">
                 <input type="text" id="resName" placeholder="Nombre del residente" required>
-                <input type="text" id="resDomicile" placeholder="Domicilio (ej. Depto. 4B)" required>
+                <select id="resDomicile" required>
+                    <option value="">Selecciona un departamento</option>
+                </select>
                 <button type="submit">Crear Residente</button>
             </form>
         </section>
@@ -28,6 +30,7 @@
         </section>
     </div>
 
+    <script src="departamentos.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

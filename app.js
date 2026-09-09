@@ -148,6 +148,18 @@ const App = {
     }
 };
 
+const loadDepartments = () => {
+    const domicileInput = document.getElementById('resDomicile');
+    const departments = Array.isArray(window.DEPARTAMENTOS) ? window.DEPARTAMENTOS : [];
+
+    departments.forEach(department => {
+        const option = document.createElement('option');
+        option.value = department;
+        option.textContent = department;
+        domicileInput.appendChild(option);
+    });
+};
+
 // --- EVENT LISTENERS & GLOBAL BINDINGS ---
 document.getElementById('residentForm').addEventListener('submit', (e) => {
     e.preventDefault();
@@ -177,6 +189,8 @@ window.addVisitor = (id) => {
         App.addVisitor(id, input.value.trim(), typeSelect.value);
     }
 };
+
+loadDepartments();
 
 // Initial Load
 App.render();
