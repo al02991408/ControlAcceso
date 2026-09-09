@@ -31,14 +31,14 @@
                         aria-required="true">
                 </div>
                 <div class="form-group">
-                    <label for="resDomicile">Domicilio *</label>
-                    <input 
-                        type="text" 
-                        id="resDomicile" 
+                    <label for="resDomicile">Departamento *</label>
+                    <select
+                        id="resDomicile"
                         name="resDomicile"
-                        placeholder="Ej: Apto 4B" 
                         required
                         aria-required="true">
+                        <option value="">Selecciona un departamento</option>
+                    </select>
                 </div>
                 <button type="submit" class="btn-primary">Crear Residente</button>
             </form>
@@ -50,6 +50,7 @@
         </section>
     </div>
 
+    <script src="departamentos.js" defer></script>
     <script src="app.js" defer></script>
 </body>
 </html>

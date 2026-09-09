@@ -1,10 +1,4 @@
-// Minimal, safer, and more maintainable version of the original app.js
-// - No inline event handlers
-// - No innerHTML with user-supplied data (avoids XSS)
-// - Uses crypto.randomUUID() with fallback for ids
-// - LocalStorage wrapped in try/catch
-// - Event delegation for resident / visitor actions
-// - Small helper decomposition
+
 
 (() => {
   // --- Utilities ---
@@ -27,7 +21,8 @@
     key: 'building_residents',
     load() {
       try {
-        return safeParse(localStorage.getItem(this.key), []);
+        const data = safeParse(localStorage.getItem(this.key), []);
+        return Array.isArray(data) ? data : [];
       } catch (err) {
         console.error('Failed to load residents:', err);
         return [];
@@ -280,6 +275,19 @@
     nameInput.focus();
   }
 
+  function loadDepartments() {
+    const domicileInput = document.getElementById('resDomicile');
+    const departments = Array.isArray(window.DEPARTAMENTOS) ? window.DEPARTAMENTOS : [];
+    if (!domicileInput) return;
+
+    departments.forEach(department => {
+      const option = document.createElement('option');
+      option.value = department;
+      option.textContent = department;
+      domicileInput.appendChild(option);
+    });
+  }
+
   function handleListClick(e) {
     const btn = e.target.closest('button');
     if (!btn) return;
@@ -352,6 +360,8 @@
 
   const listContainer = document.getElementById('residentsList');
   if (listContainer) listContainer.addEventListener('click', handleListClick);
+
+  loadDepartments();
 
   // Initial render
   App.render();
