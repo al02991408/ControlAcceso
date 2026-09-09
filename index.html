@@ -1,9 +1,11 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Access Control - Residentes</title>
+    <meta name="theme-color" content="#4CAF50">
+    <meta name="description" content="Sistema de control de acceso para edificios de departamentos">
+    <title>Control de Acceso - Residentes</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -13,21 +15,41 @@
             <p>Residentes & Visitantes</p>
         </header>
 
-        <section class="form-section">
-            <h2>Agregar Nuevo Residente</h2>
-            <form id="residentForm">
-                <input type="text" id="resName" placeholder="Resident Name" required>
-                <input type="text" id="resDomicile" placeholder="Domicile (e.g., Apt 4B)" required>
-                <button type="submit">Crear Residente</button>
+        <div id="errorMessage" class="alert alert-error" role="alert" aria-live="polite" hidden></div>
+
+        <section class="form-section" aria-labelledby="form-title">
+            <h2 id="form-title">Agregar Nuevo Residente</h2>
+            <form id="residentForm" novalidate>
+                <div class="form-group">
+                    <label for="resName">Nombre del Residente *</label>
+                    <input 
+                        type="text" 
+                        id="resName" 
+                        name="resName"
+                        placeholder="Ej: Juan Pérez"
+                        required
+                        aria-required="true">
+                </div>
+                <div class="form-group">
+                    <label for="resDomicile">Domicilio *</label>
+                    <input 
+                        type="text" 
+                        id="resDomicile" 
+                        name="resDomicile"
+                        placeholder="Ej: Apto 4B" 
+                        required
+                        aria-required="true">
+                </div>
+                <button type="submit" class="btn-primary">Crear Residente</button>
             </form>
         </section>
 
-        <section class="list-section">
-            <h2>Directorio <span id="residentCount">(0)</span></h2>
-            <div id="residentsList"></div>
+        <section class="list-section" aria-labelledby="directory-title">
+            <h2 id="directory-title">Directorio <span id="residentCount" aria-label="Cantidad de residentes">(0)</span></h2>
+            <div id="residentsList" role="list" aria-label="Lista de residentes"></div>
         </section>
     </div>
 
-    <script src="app.js"></script>
+    <script src="app.js" defer></script>
 </body>
 </html>
