@@ -1,314 +1,363 @@
-```javascript
-// --- STATE MANAGEMENT ---
-const DB = {
-    getResidents: () => JSON.parse(localStorage.getItem('building_residents')) || [],
-    saveResidents: (data) => localStorage.setItem('building_residents', JSON.stringify(data))
-};
+// Minimal, safer, and more maintainable version of the original app.js
+// - No inline event handlers
+// - No innerHTML with user-supplied data (avoids XSS)
+// - Uses crypto.randomUUID() with fallback for ids
+// - LocalStorage wrapped in try/catch
+// - Event delegation for resident / visitor actions
+// - Small helper decomposition
 
-// --- CRUD OPERATIONS ---
-const App = {
-    residents: DB.getResidents(),
+(() => {
+  // --- Utilities ---
+  const uid = () => (crypto && crypto.randomUUID) ? crypto.randomUUID() : (
+    Date.now().toString(36) + Math.random().toString(36).slice(2, 8)
+  );
+
+  const safeParse = (str, fallback) => {
+    try {
+      return JSON.parse(str);
+    } catch {
+      return fallback;
+    }
+  };
+
+  const nowString = () => new Date().toLocaleString();
+
+  // --- Storage ---
+  const Storage = {
+    key: 'building_residents',
+    load() {
+      try {
+        return safeParse(localStorage.getItem(this.key), []);
+      } catch (err) {
+        console.error('Failed to load residents:', err);
+        return [];
+      }
+    },
+    save(data) {
+      try {
+        localStorage.setItem(this.key, JSON.stringify(data));
+      } catch (err) {
+        console.error('Failed to save residents:', err);
+      }
+    }
+  };
+
+  // --- App State & Methods ---
+  const App = {
+    residents: Storage.load(),
 
     createResident(name, domicile) {
-        const newResident = {
-            id: Date.now().toString(),
-            name,
-            domicile,
-            visitors: []
-        };
+      name = (name || '').trim();
+      domicile = (domicile || '').trim();
+      if (!name) return { ok: false, error: 'Name is required' };
 
-        this.residents.push(newResident);
-        DB.saveResidents(this.residents);
-        this.render();
+      const newResident = {
+        id: uid(),
+        name,
+        domicile,
+        visitors: []
+      };
+
+      this.residents.push(newResident);
+      Storage.save(this.residents);
+      this.render();
+      return { ok: true, resident: newResident };
     },
 
     deleteResident(id) {
-        this.residents = this.residents.filter(r => r.id !== id);
-        DB.saveResidents(this.residents);
-        this.render();
+      this.residents = this.residents.filter(r => r.id !== id);
+      Storage.save(this.residents);
+      this.render();
     },
 
     updateResident(id, newName, newDomicile) {
-        const resident = this.residents.find(r => r.id === id);
-
-        if (resident) {
-            resident.name = newName;
-            resident.domicile = newDomicile;
-
-            DB.saveResidents(this.residents);
-            this.render();
-        }
+      const resident = this.residents.find(r => r.id === id);
+      if (!resident) return;
+      resident.name = (newName || resident.name).trim();
+      resident.domicile = (newDomicile || resident.domicile).trim();
+      Storage.save(this.residents);
+      this.render();
     },
-
-    // --- VISITORS ---
 
     addVisitor(residentId, visitorName) {
-        const resident = this.residents.find(r => r.id === residentId);
+      const resident = this.residents.find(r => r.id === residentId);
+      if (!resident) return { ok: false, error: 'Resident not found' };
 
-        if (resident) {
-            resident.visitors.push({
-                id: 'v_' + Date.now().toString(),
-                name: visitorName,
-                date: new Date().toLocaleString()
-            });
+      visitorName = (visitorName || '').trim();
+      if (!visitorName) return { ok: false, error: 'Visitor name required' };
 
-            DB.saveResidents(this.residents);
-            this.render();
-        }
+      resident.visitors.push({
+        id: uid(),
+        name: visitorName,
+        date: nowString()
+      });
+
+      Storage.save(this.residents);
+      this.render();
+      return { ok: true };
     },
 
-    // NUEVO: EDITAR VISITANTE
     updateVisitor(residentId, visitorId, newName) {
-        const resident = this.residents.find(r => r.id === residentId);
-
-        if (resident) {
-            const visitor = resident.visitors.find(v => v.id === visitorId);
-
-            if (visitor) {
-                visitor.name = newName;
-
-                DB.saveResidents(this.residents);
-                this.render();
-            }
-        }
+      const resident = this.residents.find(r => r.id === residentId);
+      if (!resident) return;
+      const visitor = resident.visitors.find(v => v.id === visitorId);
+      if (!visitor) return;
+      visitor.name = (newName || visitor.name).trim();
+      Storage.save(this.residents);
+      this.render();
     },
 
-    // NUEVO: ELIMINAR VISITANTE
     deleteVisitor(residentId, visitorId) {
-        const resident = this.residents.find(r => r.id === residentId);
-
-        if (resident) {
-            resident.visitors = resident.visitors.filter(v => v.id !== visitorId);
-
-            DB.saveResidents(this.residents);
-            this.render();
-        }
+      const resident = this.residents.find(r => r.id === residentId);
+      if (!resident) return;
+      resident.visitors = resident.visitors.filter(v => v.id !== visitorId);
+      Storage.save(this.residents);
+      this.render();
     },
 
-    // --- DOM RENDERING ---
-    render() {
-        const listContainer = document.getElementById('residentsList');
+    // --- Rendering helpers ---
+    createResidentCard(resident) {
+      const card = document.createElement('div');
+      card.className = 'resident-card';
+      card.dataset.residentId = resident.id;
 
-        document.getElementById('residentCount').innerText =
-            `(${this.residents.length})`;
+      // Header
+      const header = document.createElement('div');
+      header.className = 'resident-header';
 
-        listContainer.innerHTML = '';
+      const info = document.createElement('div');
+      const title = document.createElement('h3');
+      title.style.margin = '0';
+      title.textContent = resident.name;
+      const dom = document.createElement('span');
+      dom.style.color = '#64748b';
+      dom.textContent = resident.domicile || '';
 
-        this.residents.forEach(resident => {
+      info.appendChild(title);
+      info.appendChild(dom);
 
-            const card = document.createElement('div');
-            card.className = 'resident-card';
+      const actions = document.createElement('div');
+      const editBtn = document.createElement('button');
+      editBtn.type = 'button';
+      editBtn.dataset.action = 'edit-resident';
+      editBtn.dataset.id = resident.id;
+      editBtn.textContent = 'Editar';
 
-            // VISITORS
-            const visitorsHTML = resident.visitors.map(v => `
-                <li>
-                    <strong>${v.name}</strong>
+      const delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.className = 'delete-btn';
+      delBtn.dataset.action = 'delete-resident';
+      delBtn.dataset.id = resident.id;
+      delBtn.textContent = 'Eliminar';
 
-                    <span style="color: #64748b;">
-                        (Expected: ${v.date})
-                    </span>
+      actions.appendChild(editBtn);
+      actions.appendChild(delBtn);
 
-                    <button
-                        onclick="editVisitor('${resident.id}', '${v.id}')"
-                        style="margin-left: 10px; padding: 4px 8px;">
-                        Editar
-                    </button>
+      header.appendChild(info);
+      header.appendChild(actions);
 
-                    <button
-                        class="delete-btn"
-                        onclick="deleteVisitor('${resident.id}', '${v.id}')"
-                        style="padding: 4px 8px;">
-                        Eliminar
-                    </button>
-                </li>
-            `).join('');
+      // Visitor section
+      const visitorSection = document.createElement('div');
+      visitorSection.className = 'visitor-section';
 
-            card.innerHTML = `
-                <div class="resident-header">
+      const visTitle = document.createElement('strong');
+      visTitle.textContent = 'Visitors';
 
-                    <div>
-                        <h3 style="margin:0;">
-                            ${resident.name}
-                        </h3>
+      const addRow = document.createElement('div');
+      addRow.style.display = 'flex';
+      addRow.style.gap = '5px';
+      addRow.style.marginTop = '5px';
 
-                        <span style="color: #64748b;">
-                            ${resident.domicile}
-                        </span>
-                    </div>
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.placeholder = 'Nuevo Visitante Nombre';
+      input.className = 'visitor-input';
+      input.dataset.residentId = resident.id;
+      input.id = `vis_${resident.id}`;
+      input.setAttribute('aria-label', `Nuevo visitante para ${resident.name}`);
 
-                    <div>
-                        <button onclick="editResident('${resident.id}')">
-                            Editar
-                        </button>
+      const addBtn = document.createElement('button');
+      addBtn.type = 'button';
+      addBtn.dataset.action = 'add-visitor';
+      addBtn.dataset.id = resident.id;
+      addBtn.textContent = 'Add';
 
-                        <button
-                            class="delete-btn"
-                            onclick="deleteResident('${resident.id}')">
-                            Eliminar
-                        </button>
-                    </div>
+      addRow.appendChild(input);
+      addRow.appendChild(addBtn);
 
-                </div>
+      const ul = document.createElement('ul');
+      ul.className = 'visitor-list';
 
-                <div class="visitor-section">
+      if (resident.visitors.length === 0) {
+        const li = document.createElement('li');
+        li.textContent = 'No expected visitors';
+        ul.appendChild(li);
+      } else {
+        resident.visitors.forEach(v => {
+          const li = document.createElement('li');
 
-                    <strong>Visitors</strong>
+          const nameEl = document.createElement('strong');
+          nameEl.textContent = v.name;
 
-                    <div style="display:flex; gap:5px; margin-top:5px;">
+          const dateSpan = document.createElement('span');
+          dateSpan.style.color = '#64748b';
+          dateSpan.style.marginLeft = '8px';
+          dateSpan.textContent = `(Expected: ${v.date})`;
 
-                        <input
-                            type="text"
-                            id="vis_${resident.id}"
-                            placeholder="Nuevo Visitante Nombre">
+          const editVBtn = document.createElement('button');
+          editVBtn.type = 'button';
+          editVBtn.textContent = 'Editar';
+          editVBtn.style.marginLeft = '10px';
+          editVBtn.dataset.action = 'edit-visitor';
+          editVBtn.dataset.residentId = resident.id;
+          editVBtn.dataset.visitorId = v.id;
 
-                        <button onclick="addVisitor('${resident.id}')">
-                            Add
-                        </button>
+          const delVBtn = document.createElement('button');
+          delVBtn.type = 'button';
+          delVBtn.className = 'delete-btn';
+          delVBtn.textContent = 'Eliminar';
+          delVBtn.style.marginLeft = '6px';
+          delVBtn.dataset.action = 'delete-visitor';
+          delVBtn.dataset.residentId = resident.id;
+          delVBtn.dataset.visitorId = v.id;
 
-                    </div>
+          li.appendChild(nameEl);
+          li.appendChild(dateSpan);
+          li.appendChild(editVBtn);
+          li.appendChild(delVBtn);
 
-                    <ul class="visitor-list">
-
-                        ${
-                            visitorsHTML ||
-                            '<li>No expected visitors</li>'
-                        }
-
-                    </ul>
-
-                </div>
-            `;
-
-            listContainer.appendChild(card);
+          ul.appendChild(li);
         });
+      }
+
+      visitorSection.appendChild(visTitle);
+      visitorSection.appendChild(addRow);
+      visitorSection.appendChild(ul);
+
+      card.appendChild(header);
+      card.appendChild(visitorSection);
+
+      return card;
+    },
+
+    render() {
+      const listContainer = document.getElementById('residentsList');
+      const countEl = document.getElementById('residentCount');
+
+      if (!listContainer || !countEl) return;
+
+      countEl.innerText = `(${this.residents.length})`;
+
+      // Clear and re-build using DocumentFragment
+      listContainer.innerHTML = '';
+      const frag = document.createDocumentFragment();
+
+      this.residents.forEach(resident => {
+        frag.appendChild(this.createResidentCard(resident));
+      });
+
+      listContainer.appendChild(frag);
     }
-};
+  };
 
-
-// --- RESIDENT FORM ---
-
-document.getElementById('residentForm').addEventListener('submit', (e) => {
-
+  // --- DOM Wiring ---
+  function onResidentFormSubmit(e) {
     e.preventDefault();
+    const nameInput = document.getElementById('resName');
+    const domicileInput = document.getElementById('resDomicile');
+    if (!nameInput) return;
 
-    const name = document.getElementById('resName').value;
-    const domicile = document.getElementById('resDomicile').value;
+    const name = (nameInput.value || '').trim();
+    const domicile = (domicileInput && domicileInput.value) ? domicileInput.value.trim() : '';
+
+    if (!name) {
+      alert('El nombre del residente es requerido.');
+      return;
+    }
 
     App.createResident(name, domicile);
-
     e.target.reset();
-});
+    nameInput.focus();
+  }
 
+  function handleListClick(e) {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    const action = btn.dataset.action;
 
-// --- RESIDENT FUNCTIONS ---
+    if (!action) return;
 
-window.deleteResident = (id) => {
-
-    if (confirm('¿Eliminar este residente?')) {
-        App.deleteResident(id);
+    switch (action) {
+      case 'delete-resident': {
+        const id = btn.dataset.id;
+        if (confirm('¿Eliminar este residente?')) {
+          App.deleteResident(id);
+        }
+        break;
+      }
+      case 'edit-resident': {
+        const id = btn.dataset.id;
+        const resident = App.residents.find(r => r.id === id);
+        if (!resident) return;
+        const newName = prompt('Nuevo Nombre:', resident.name);
+        const newDomicile = prompt('Nuevo Domicilio (Apt):', resident.domicile);
+        if (newName && newDomicile) {
+          App.updateResident(id, newName.trim(), newDomicile.trim());
+        }
+        break;
+      }
+      case 'add-visitor': {
+        const residentId = btn.dataset.id;
+        const input = document.querySelector(`input.visitor-input[data-resident-id="${residentId}"]`);
+        if (!input) return;
+        const name = (input.value || '').trim();
+        if (!name) {
+          alert('Nombre del visitante requerido.');
+          return;
+        }
+        App.addVisitor(residentId, name);
+        input.value = '';
+        input.focus();
+        break;
+      }
+      case 'edit-visitor': {
+        const residentId = btn.dataset.residentId;
+        const visitorId = btn.dataset.visitorId;
+        const resident = App.residents.find(r => r.id === residentId);
+        if (!resident) return;
+        const visitor = resident.visitors.find(v => v.id === visitorId);
+        if (!visitor) return;
+        const newName = prompt('Nuevo nombre del visitante:', visitor.name);
+        if (newName && newName.trim() !== '') {
+          App.updateVisitor(residentId, visitorId, newName.trim());
+        }
+        break;
+      }
+      case 'delete-visitor': {
+        const residentId = btn.dataset.residentId;
+        const visitorId = btn.dataset.visitorId;
+        if (confirm('¿Eliminar este visitante?')) {
+          App.deleteVisitor(residentId, visitorId);
+        }
+        break;
+      }
+      default:
+        break;
     }
+  }
 
-};
+  // Attach handlers safely
+  const form = document.getElementById('residentForm');
+  if (form) form.addEventListener('submit', onResidentFormSubmit);
 
+  const listContainer = document.getElementById('residentsList');
+  if (listContainer) listContainer.addEventListener('click', handleListClick);
 
-window.editResident = (id) => {
+  // Initial render
+  App.render();
 
-    const resident = App.residents.find(r => r.id === id);
-
-    if (!resident) return;
-
-    const newName = prompt(
-        'Nuevo Nombre:',
-        resident.name
-    );
-
-    const newDomicile = prompt(
-        'Nuevo Domicilio (Apt):',
-        resident.domicile
-    );
-
-    if (newName && newDomicile) {
-
-        App.updateResident(
-            id,
-            newName.trim(),
-            newDomicile.trim()
-        );
-
-    }
-
-};
-
-
-// --- VISITOR FUNCTIONS ---
-
-window.addVisitor = (id) => {
-
-    const input = document.getElementById(`vis_${id}`);
-
-    if (input && input.value.trim() !== '') {
-
-        App.addVisitor(
-            id,
-            input.value.trim()
-        );
-
-    }
-
-};
-
-
-// NUEVO: EDITAR VISITANTE
-
-window.editVisitor = (residentId, visitorId) => {
-
-    const resident = App.residents.find(
-        r => r.id === residentId
-    );
-
-    if (!resident) return;
-
-    const visitor = resident.visitors.find(
-        v => v.id === visitorId
-    );
-
-    if (!visitor) return;
-
-    const newName = prompt(
-        'Nuevo nombre del visitante:',
-        visitor.name
-    );
-
-    if (newName && newName.trim() !== '') {
-
-        App.updateVisitor(
-            residentId,
-            visitorId,
-            newName.trim()
-        );
-
-    }
-
-};
-
-
-// NUEVO: ELIMINAR VISITANTE
-
-window.deleteVisitor = (residentId, visitorId) => {
-
-    if (confirm('¿Eliminar este visitante?')) {
-
-        App.deleteVisitor(
-            residentId,
-            visitorId
-        );
-
-    }
-
-};
-
-
-// --- INITIAL LOAD ---
-
-App.render();
-```
+  // Expose App to window in development for debugging only (optional)
+  if (window.location.search.includes('dev')) {
+    window._App = App;
+  }
+})();
