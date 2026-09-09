@@ -1,42 +1,45 @@
+const escapeHTML = (str) => {
+    return str.replace(/[&<>'"]/g, 
+        tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+    );
+};
 
-// --- STATE MANAGEMENT (Storage Abstraction) ---
-// This is decoupled so you can easily swap localStorage for an API call later.
 const DB = {
     getResidents: () => JSON.parse(localStorage.getItem('building_residents')) || [],
     saveResidents: (data) => localStorage.setItem('building_residents', JSON.stringify(data))
 };
 
-// Centralized catalog so visitor types can be changed without touching the UI logic.
-const VISITOR_TYPES = Object.freeze([
-    { value: 'personal', label: 'Visita personal' },
-    { value: 'familiar', label: 'Familiar' },
-    { value: 'proveedor', label: 'Proveedor' },
-    { value: 'servicio', label: 'Personal de servicio' },
-    { value: 'repartidor', label: 'Repartidor' },
-    { value: 'otro', label: 'Otro' }
-]);
-
-const DEFAULT_VISITOR_TYPE = VISITOR_TYPES[0].value;
-
-const escapeHTML = (value) => String(value ?? '').replace(/[&<>'"]/g, character => ({
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    "'": '&#39;',
-    '"': '&quot;'
-})[character]);
-
-const getVisitorType = (type) => VISITOR_TYPES.find(visitorType => visitorType.value === type);
-
-// --- CRUD OPERATIONS ---
 const App = {
     residents: DB.getResidents(),
 
+    init() {
+        this.populateApartments();
+        this.render();
+    },
+
+    populateApartments() {
+        const select = document.getElementById('resDomicile');
+        if (window.DEPARTAMENTOS) {
+            window.DEPARTAMENTOS.forEach(apt => {
+                const option = document.createElement('option');
+                option.value = apt;
+                option.textContent = apt;
+                select.appendChild(option);
+            });
+        }
+    },
+
     createResident(name, domicile) {
+        // BUG FIX #5: Prevent duplicate residents
+        if (this.residents.some(r => r.domicile === domicile)) {
+            alert(`A resident already exists for ${domicile}`);
+            return;
+        }
+
         const newResident = {
             id: Date.now().toString(),
-            name,
-            domicile,
+            name: name.trim(),
+            domicile: domicile,
             visitors: []
         };
         this.residents.push(newResident);
@@ -53,25 +56,20 @@ const App = {
     updateResident(id, newName, newDomicile) {
         const resident = this.residents.find(r => r.id === id);
         if (resident) {
-            resident.name = newName;
+            resident.name = newName.trim();
             resident.domicile = newDomicile;
             DB.saveResidents(this.residents);
             this.render();
         }
     },
 
-    addVisitor(residentId, visitorName, visitorType = DEFAULT_VISITOR_TYPE) {
+    addVisitor(residentId, visitorName, visitorType) {
         const resident = this.residents.find(r => r.id === residentId);
         if (resident) {
-            const validVisitorType = getVisitorType(visitorType)
-                ? visitorType
-                : DEFAULT_VISITOR_TYPE;
-
-            if (!Array.isArray(resident.visitors)) resident.visitors = [];
             resident.visitors.push({
                 id: 'v_' + Date.now().toString(),
-                name: visitorName,
-                type: validVisitorType,
+                name: visitorName.trim(),
+                type: visitorType,
                 date: new Date().toLocaleString()
             });
             DB.saveResidents(this.residents);
@@ -79,67 +77,57 @@ const App = {
         }
     },
 
-    // --- DOM RENDERING (List Operation) ---
     render() {
         const listContainer = document.getElementById('residentsList');
         document.getElementById('residentCount').innerText = `(${this.residents.length})`;
-        listContainer.innerHTML = ''; // Clear current list
+        listContainer.innerHTML = ''; 
 
         this.residents.forEach(resident => {
             const card = document.createElement('div');
             card.className = 'resident-card';
+            
+            const safeName = escapeHTML(resident.name);
+            const safeDomicile = escapeHTML(resident.domicile);
 
-            const visitors = Array.isArray(resident.visitors) ? resident.visitors : [];
-
-            // Build Visitor HTML
-            const visitorsHTML = visitors.map(visitor => {
-                const visitorType = getVisitorType(visitor.type);
-                const typeValue = visitorType ? visitorType.value : 'sin-especificar';
-                const typeLabel = visitorType ? visitorType.label : 'Sin especificar';
-
+            const visitorsHTML = resident.visitors.map(v => {
+                const safeVisitorName = escapeHTML(v.name);
                 return `
                     <li>
-                        <div class="visitor-details">
-                            <strong>${escapeHTML(visitor.name)}</strong>
-                            <span class="visitor-date">Esperado: ${escapeHTML(visitor.date)}</span>
-                        </div>
-                        <span class="visitor-type visitor-type--${typeValue}">${typeLabel}</span>
+                        <strong>${safeVisitorName}</strong> 
+                        <span class="badge type-${v.type}">${v.type}</span>
+                        <span style="color: #64748b; font-size: 0.85em; margin-left: auto;">${v.date}</span>
                     </li>
                 `;
             }).join('');
 
-            const visitorTypeOptions = VISITOR_TYPES.map(visitorType =>
-                `<option value="${visitorType.value}">${visitorType.label}</option>`
-            ).join('');
-
             card.innerHTML = `
                 <div class="resident-header">
                     <div>
-                        <h3 style="margin:0;">${escapeHTML(resident.name)}</h3>
-                        <span style="color: #64748b;">${escapeHTML(resident.domicile)}</span>
+                        <h3 style="margin:0;">${safeName}</h3>
+                        <span style="color: #64748b;">${safeDomicile}</span>
                     </div>
                     <div>
-                        <button onclick="editResident('${resident.id}')">Editar</button>
-                        <button class="delete-btn" onclick="deleteResident('${resident.id}')">Eliminar</button>
+                        <button onclick="handleEditResident('${resident.id}')">Edit</button>
+                        <button class="delete-btn" onclick="handleDeleteResident('${resident.id}')">Remove</button>
                     </div>
                 </div>
                 
                 <div class="visitor-section">
-                    <strong>Visitantes</strong>
-                    <div class="visitor-form" role="group" aria-label="Agregar visitante para ${escapeHTML(resident.name)}">
-                        <input
-                            type="text"
-                            id="vis_${resident.id}"
-                            placeholder="Nombre del visitante"
-                            aria-label="Nombre del visitante"
-                        >
-                        <select id="visType_${resident.id}" aria-label="Tipo de visitante">
-                            ${visitorTypeOptions}
+                    <strong>Log Expected Visitor</strong>
+                    <div class="visitor-controls">
+                        <input type="text" id="vis_name_${resident.id}" placeholder="Visitor Name">
+                        <select id="vis_type_${resident.id}">
+                            <option value="personal">Personal</option>
+                            <option value="family">Family</option>
+                            <option value="supplier">Supplier</option>
+                            <option value="service">Service</option>
+                            <option value="delivery">Delivery</option>
+                            <option value="other">Other</option>
                         </select>
-                        <button onclick="addVisitor('${resident.id}')">Agregar</button>
+                        <button onclick="handleAddVisitor('${resident.id}')">Add</button>
                     </div>
                     <ul class="visitor-list">
-                        ${visitorsHTML || '<li class="visitor-empty">No hay visitantes esperados</li>'}
+                        ${visitorsHTML || '<li style="color: #64748b; font-style: italic;">No expected visitors logged.</li>'}
                     </ul>
                 </div>
             `;
@@ -148,50 +136,58 @@ const App = {
     }
 };
 
-const loadDepartments = () => {
-    const domicileInput = document.getElementById('resDomicile');
-    const departments = Array.isArray(window.DEPARTAMENTOS) ? window.DEPARTAMENTOS : [];
+// BUG FIX #1: Move event listener INSIDE DOMContentLoaded
+document.addEventListener('DOMContentLoaded', () => {
+    App.init();
 
-    departments.forEach(department => {
-        const option = document.createElement('option');
-        option.value = department;
-        option.textContent = department;
-        domicileInput.appendChild(option);
+    // Form submission listener
+    document.getElementById('residentForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const name = document.getElementById('resName').value;
+        const domicile = document.getElementById('resDomicile').value;
+        
+        if (name && domicile) {
+            App.createResident(name, domicile);
+            e.target.reset(); 
+        }
     });
-};
 
-// --- EVENT LISTENERS & GLOBAL BINDINGS ---
-document.getElementById('residentForm').addEventListener('submit', (e) => {
-    e.preventDefault();
-    const name = document.getElementById('resName').value;
-    const domicile = document.getElementById('resDomicile').value;
-    App.createResident(name, domicile);
-    e.target.reset(); // Clear form
+    // BUG FIX #3: Sync across tabs
+    window.addEventListener('storage', (e) => {
+        if (e.key === 'building_residents') {
+            App.residents = DB.getResidents();
+            App.render();
+        }
+    });
 });
 
-// Global functions so inline HTML onclick handlers can reach them
-window.deleteResident = (id) => {
-    if(confirm('Eliminar este residente?')) App.deleteResident(id);
+window.handleDeleteResident = (id) => {
+    if(confirm('Are you sure you want to remove this resident?')) App.deleteResident(id);
 };
 
-window.editResident = (id) => {
-    const newName = prompt('Nuevo Nombre:');
-    const newDomicile = prompt('Nuevo Domiclio (Apt):');
-    if (newName && newDomicile) {
+// BUG FIX #4: Validate domicile is in DEPARTAMENTOS
+window.handleEditResident = (id) => {
+    const newName = prompt('Enter new Resident Name:');
+    if (!newName) return; 
+    
+    const aptList = window.DEPARTAMENTOS.join(', ');
+    const newDomicile = prompt(`Enter new Apartment\nValid options: ${aptList}`);
+    
+    if (newDomicile && window.DEPARTAMENTOS.includes(newDomicile)) {
         App.updateResident(id, newName, newDomicile);
+    } else if (newDomicile) {
+        alert('Invalid apartment. Please select from the list.');
     }
 };
 
-window.addVisitor = (id) => {
-    const input = document.getElementById(`vis_${id}`);
-    const typeSelect = document.getElementById(`visType_${id}`);
-    if(input.value.trim() !== '') {
-        App.addVisitor(id, input.value.trim(), typeSelect.value);
+window.handleAddVisitor = (id) => {
+    const nameInput = document.getElementById(`vis_name_${id}`);
+    const typeInput = document.getElementById(`vis_type_${id}`);
+    
+    if(nameInput.value.trim() !== '') {
+        App.addVisitor(id, nameInput.value.trim(), typeInput.value);
+        nameInput.value = ''; 
+    } else {
+        alert("Please enter a visitor's name.");
     }
 };
-
-loadDepartments();
-
-// Initial Load
-App.render();
-
