@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Access Control - Residentes</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Control de Acceso del Edificio</h1>
+            <p>Residentes & Visitantes</p>
+        </header>
+
+        <section class="form-section">
+            <h2>Agregar Nuevo Residente</h2>
+            <form id="residentForm">
+                <input type="text" id="resName" placeholder="Resident Name" required>
+                <input type="text" id="resDomicile" placeholder="Domicile (e.g., Apt 4B)" required>
+                <button type="submit">Crear Residente</button>
+            </form>
+        </section>
+
+        <section class="list-section">
+            <h2>Directorio <span id="residentCount">(0)</span></h2>
+            <div id="residentsList"></div>
+        </section>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
