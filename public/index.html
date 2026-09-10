@@ -3,25 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Access Control - Residentes</title>
-    <link rel="stylesheet" href="style.css">
+    <title>Control de Acceso - Residentes</title>
+    <link rel="stylesheet" href="estilos.css">
 </head>
 <body>
     <div class="container">
         <header>
             <h1>Control de Acceso del Edificio</h1>
-            <p>Residentes & Visitantes</p>
+            <p>Residentes y visitantes</p>
         </header>
 
         <section class="form-section">
-            <h2>Agregar Nuevo Residente</h2>
+            <h2>Agregar nuevo residente</h2>
             <form id="residentForm">
                 <input type="text" id="resName" placeholder="Nombre del residente" required>
                 <select id="resDomicile" required>
                     <option value="">Selecciona un departamento</option>
                 </select>
-                <button type="submit">Crear Residente</button>
+                <button type="submit">Crear residente</button>
             </form>
+            <p id="formMessage" role="status"></p>
         </section>
 
         <section class="list-section">
@@ -30,8 +31,6 @@
         </section>
     </div>
 
-    <script src="departamentos.js"></script>
-    <script src="app.js"></script>
+    <script src="cliente.js"></script>
 </body>
 </html>
-
