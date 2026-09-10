@@ -59,6 +59,65 @@ describe('Creación y consulta de residentes', () => {
     });
 });
 
+describe('Actualización y eliminación de residentes', () => {
+    let app;
+
+    beforeEach(() => {
+        app = appModule.createApp();
+    });
+
+    test('actualiza nombre y departamento', async () => {
+        const created = await request(app)
+            .post('/api/residentes')
+            .send({ name: 'Ana López', domicile: 'Apt 1A' });
+
+        const response = await request(app)
+            .put(`/api/residentes/${created.body.id}`)
+            .send({ name: 'Ana García', domicile: 'Apt 3C' });
+
+        expect(response.status).toBe(200);
+        expect(response.body).toMatchObject({ name: 'Ana García', domicile: 'Apt 3C' });
+    });
+
+    test('confirma los datos actualizados', async () => {
+        const created = await request(app)
+            .post('/api/residentes')
+            .send({ name: 'Ana López', domicile: 'Apt 1A' });
+
+        await request(app)
+            .put(`/api/residentes/${created.body.id}`)
+            .send({ name: 'Ana García', domicile: 'Apt 3C' });
+
+        const response = await request(app).get('/api/residentes');
+        expect(response.body[0]).toMatchObject({ name: 'Ana García', domicile: 'Apt 3C' });
+    });
+
+    test('elimina un residente y confirma que dejó de existir', async () => {
+        const created = await request(app)
+            .post('/api/residentes')
+            .send({ name: 'Ana López', domicile: 'Apt 1A' });
+
+        const deleted = await request(app).delete(`/api/residentes/${created.body.id}`);
+        expect(deleted.status).toBe(200);
+
+        const response = await request(app).get('/api/residentes');
+        expect(response.body).toEqual([]);
+    });
+
+    test('responde 404 al actualizar un residente inexistente', async () => {
+        const response = await request(app)
+            .put('/api/residentes/residente-inexistente')
+            .send({ name: 'Ana García', domicile: 'Apt 3C' });
+
+        expect(response.status).toBe(404);
+    });
+
+    test('responde 404 al eliminar un residente inexistente', async () => {
+        const response = await request(app).delete('/api/residentes/residente-inexistente');
+        expect(response.status).toBe(404);
+    });
+});
+
 describe('Visitantes', () => {
     let app;
 
@@ -96,38 +155,11 @@ describe('Visitantes', () => {
         expect(response.status).toBe(400);
     });
 
-    test('rechaza visitantes para un residente inexistente', async () => {
+    test('responde 404 para un residente inexistente', async () => {
         const response = await request(app)
             .post('/api/residentes/residente-inexistente/visitantes')
             .send({ name: 'Carlos Pérez' });
 
         expect(response.status).toBe(404);
-    });
-});
-
-describe('Actualización y eliminación', () => {
-    let app;
-
-    beforeEach(() => {
-        app = appModule.createApp();
-    });
-
-    test('actualiza y elimina un residente', async () => {
-        const resident = await request(app)
-            .post('/api/residentes')
-            .send({ name: 'Ana López', domicile: 'Apt 1A' });
-
-        const updated = await request(app)
-            .put(`/api/residentes/${resident.body.id}`)
-            .send({ name: 'Ana García', domicile: 'Apt 2A' });
-
-        expect(updated.status).toBe(200);
-        expect(updated.body).toMatchObject({ name: 'Ana García', domicile: 'Apt 2A' });
-
-        const deleted = await request(app).delete(`/api/residentes/${resident.body.id}`);
-        expect(deleted.status).toBe(200);
-
-        const residents = await request(app).get('/api/residentes');
-        expect(residents.body).toHaveLength(0);
     });
 });
