@@ -141,10 +141,8 @@ button.delete-btn:hover { background-color: #b91c1c; }
 .visitor-type--otro,
 .visitor-type--sin-especificar { background: #e2e8f0; color: #475569; }
 
-.visitor-list .visitor-empty {
-    color: #64748b;
-    font-style: italic;
-}
+.visitor-list .visitor-empty,
+.empty-message { color: #64748b; font-style: italic; }
 
 @media (max-width: 640px) {
     form,
@@ -164,4 +162,3 @@ button.delete-btn:hover { background-color: #b91c1c; }
         flex-direction: column;
     }
 }
-
